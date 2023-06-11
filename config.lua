@@ -80,11 +80,12 @@ Config.coffee_items = {
 }
 
 Config.soda_items = {
-	{ name = 'sugarydrink', price = 5 }
+	{ name = 'sugarydrink', price = 5 },
+	{ name = 'cola', price = 5 },
 }
 
 Config.cigarettes_items = {
 	{ name = 'cigarette', price = 5 }
 }
 
-Config.debug = true
+Config.debug = false
