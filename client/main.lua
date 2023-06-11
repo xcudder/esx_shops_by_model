@@ -47,7 +47,7 @@ function check_for_store_props()
 				if not current_shop_id or (current_shop_id ~= p_to_id(shop_prop)) then --no shop or new shop
 					close_by_shop = get_or_create_shop(shop_prop, shop_type)
 					current_shop_id = close_by_shop
-				elseif current_shop and (current_shop_id == p_to_id(shop_prop)) then -- same shop
+				elseif current_shop_id and (current_shop_id == p_to_id(shop_prop)) then -- same shop
 					close_by_shop = current_shop_id
 				end
 			end
