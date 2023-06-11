@@ -15,3 +15,8 @@ server_scripts {
 	'server/main.lua',
 	'config.lua',
 }
+
+dependencies {
+    'es_extended',
+    'ox_inventory'
+}

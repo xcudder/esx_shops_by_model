@@ -1,13 +1,11 @@
-RegisterNetEvent("esx_model_shops:register_shop")
-AddEventHandler("esx_model_shops:register_shop", function(name, inventory, v3)
-	local created_shop
-	if Config.debug then ESX.ShowNotification("Server side got event") end
+ESX.RegisterServerCallback("esx_model_shops:register_shop", function(source, cb, id, inventory, v3)
 	if GetResourceState('ox_inventory') == 'started' then
-		created_shop = exports.ox_inventory:RegisterShop({
-		    name = name,
-		    inventory = Config[inventory_key],
+		exports.ox_inventory:RegisterShop(id, {
+		    id = id,
+		    name = 'Stand / Vending Machine',
+		    inventory = inventory,
 		    locations = { v3 },
 		})
 	end
-	if Config.debug then ESX.ShowNotification(json.encode(created_shop)) end
-end
+	cb(true)
+end)

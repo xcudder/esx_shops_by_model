@@ -1,83 +1,93 @@
-local used_v3s = {}
+local x, y, z
+local pped
+local current_shop_id = false
+local created_shops = {}
 
-Citizen.CreateThread(function()
-    debug_message("Started main thread")
-    local pped = PlayerPedId()
-    while true do
-        Wait(5000) -- check every 5 seconds
-        if IsPedOnFoot(pped) then
-            debug_message("Check!")
-            check_for_store_props()
-        end
-    end
+RegisterNetEvent('esx:playerLoaded')
+AddEventHandler('esx:playerLoaded', function()
+	Citizen.CreateThread(function() -- continuously scour for props, this can be more spaced
+		pped = PlayerPedId()
+		while true do
+			debug_message("Checking player surroundings... ")
+			Wait(1000)
+			if IsPedOnFoot(pped) then
+				x, y, z = table.unpack(GetEntityCoords(pped))
+				check_for_store_props()
+			end
+		end
+	end)
+
+	Citizen.CreateThread(function() -- offer interactivity when proper
+		while true do
+			Wait(0)
+			if IsPedOnFoot(pped) and current_shop_id then
+				DisplayHelpText("Press ~INPUT_CONTEXT~ to interact")
+
+				if(IsControlJustReleased(1, 38)) then
+					debug_message("Tried to open " .. current_shop_id)
+					exports.ox_inventory:openInventory('shop', {id = current_shop_id , type = current_shop_id })
+				end
+			end
+		end
+	end)
 end)
 
+-- two main functions
 function check_for_store_props()
-    debug_message("Checking for store props close by")
-    local x, y, z = table.unpack(GetEntityCoords(PlayerPedId()))
-    debug_message("Player is at " .. x .. " , " .. y .. " , " .. z)
-    local shop_type = ''
-    for is = 1, #Config.shop_types do
-        shop_type = Config.shop_types[is]
-        debug_message("Looking for type: " .. shop_type)
+	local shop_type = ''
+	local shop_prop, close_by_shop = false, false
 
-        for i = 1, #Config[shop_type] do
-            debug_message("Looking for model: " .. Config[shop_type][i])
-            shop = GetClosestObjectOfType(x, y, z, 200.0, Config[shop_type][i])
-            if(shop ~= 0) then
-                debug_message("Prop found for type: " .. shop_type .. ", model: " .. Config[shop_type][i])
-                create_shop(shop, shop_type)
-            end
-        end
-    end
+	for is = 1, #Config.shop_types do
+		shop_type = Config.shop_types[is]
+
+		for i = 1, #Config[shop_type] do
+			shop_prop = GetClosestObjectOfType(x, y, z, 0.85, Config[shop_type][i])
+
+			if (shop_prop ~= 0) then
+				if ( not current_shop_id or current_shop_id ~= p_to_id(shop_prop)) then --no shop or new shop
+					close_by_shop = get_or_create_shop(shop_prop, shop_type)
+					current_shop_id = close_by_shop
+				elseif (current shop and current_shop_id == p_to_id(shop_prop)) then -- same shop
+					close_by_shop = current_shop_id
+				end
+			end
+		end
+	end
+
+	if not close_by_shop then current_shop_id = false end
 end
 
-function create_shop(shop, shop_type)
-    local inventory_key = shop_type .. "_items"
-    local v3 = GetEntityCoords(shop)
-    debug_message("Shop at: " .. v3)
+function get_or_create_shop(shop_prop, shop_type)
+	local id = p_to_id(shop_prop)
+	debug_message("get or create shop (" .. id .. ")", 500)
+	if created_shops[id] then return id end
 
-    if table_contains(used_v3s, v3) then return end
-    debug_message("Proper unused coordinates")
+	ESX.TriggerServerCallback('esx_model_shops:register_shop', function(success)
+		created_shops[id] = true
+	end, id, Config[shop_type .. "_items"], GetEntityCoords(shop_prop)) --id, inventory and coords
 
-    local name = 'Vending Machine'
-    local blip_id = 374
-    
-    if shop_type == 'fruits' or shop_type == 'sandwiches' then
-        name = 'Goods Stand'
-        blip_id = 473
-    end
+	if not created_shops[id] then Wait(100) end -- wait on callback
 
-    setupBlip({ title="Goods Stand", colour=69, id=blip_id }, v3)
-    debug_message("Blip configured, About to create ox inventory shop")
-    TriggerServerEvent('esx_model_shops:register_shop', 'Goods Stand', Config[inventory_key], v3)
-    table.insert(used_v3s, v3)
+	debug_message("created a shop (" .. id .. ")", 500)
+
+	return id
 end
 
-function setupBlip(info, v3)
-    info.blip = AddBlipForCoord(v3.x, v3.y, v3.z)
-    SetBlipSprite(info.blip, info.id)
-    SetBlipDisplay(info.blip, 4)
-    SetBlipScale(info.blip, 0.9)
-    SetBlipColour(info.blip, info.colour)
-    SetBlipAsShortRange(info.blip, true)
-    BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString(info.title)
-    EndTextCommandSetBlipName(info.blip)
+-- helpers
+function debug_message(msg, timing)
+	if not timing then timing = 500 end
+	if(Config.debug) then
+		ESX.ShowNotification(msg)
+		Wait(timing)
+	end
 end
 
-function debug_message(msg)
-    if(Config.debug) then
-        ESX.ShowHelpNotification(msg)
-        Wait(1000)
-    end
+function DisplayHelpText(str)
+	SetTextComponentFormat("STRING")
+	AddTextComponentString(str)
+	DisplayHelpTextFromStringLabel(0, 0, 1, -1)
 end
 
-function table_contains(table, element)
-  for _, value in pairs(table) do
-    if value == element then
-      return true
-    end
-  end
-  return false
+function p_to_id(shop_prop)
+	"id_" .. tostring(shop_prop)
 end
